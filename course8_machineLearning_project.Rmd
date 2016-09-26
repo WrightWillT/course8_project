@@ -1,0 +1,94 @@
+---
+title: "Course 8 Machine Learning Project"
+author: "Will Wright"
+date: "September 25, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Predicting Barbell Lift Quality Based on Accelerometric Data
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Getting and Cleaning Data
+
+I started by first loading both the training and test data into R to get a better sense for the overall structure:
+
+```{r}
+train_raw1<-read.csv("pml-training.csv", header = T, sep = ",")
+test_raw1<-read.csv("pml-testing.csv", header = T, sep = ",")
+#str(train_raw1)
+#str(train_raw2)
+```
+The training set has 19622 observations of 160 variables while the test set has 20 observations of 160 variables.  The variables in both sets are the same except the training set has the "classe" variable (which denotes the quality of the lift) and the test set has a "problem_id" variable.  I could see several possibly useless variables with the str() since many of them have NAs and other unimportant details like the subject's name doing the lift, the timestamps, and the windows.  Instead of just removing all the variables with any NAs, I wanted to see if there were variables with NAs that might be important for the model.  To do this, I established a threshold for the % NA I thought would be reasonable. While I tested many thresholds for differences, the case below tests to see how many variables have above allowable threshold for % NA:
+
+```{r}
+THRESHOLD<-0.1
+#THRESHOLD is the constant for the percent NA's in a column acceptable for inclusion in the algorithm
+sum(colSums(is.na(test_raw1))/nrow(test_raw1)>THRESHOLD)
+```
+
+The results of testing different values for the THRESHOLD show that the columns with NA are all-or-nothing and that no % NA is required.  100 of the variables have all NAs so I removed them from the test set:
+
+```{r}
+test_raw2 <- test_raw1[, colSums(is.na(test_raw1)) == 0] 
+```
+
+At this point, we have 60 variables to work with and, as mentioned above, several of them seem uninformative for modeling.  In particular, the X (observation number), user_name, timestamps, and windows variables all seem irrelevant.  This being the case, they were removed to get to a final test set:
+
+```{r}
+test_final<-test_raw2[,8:60]
+```
+
+Next, to get to the training set into a state where we have the same variables as the test set, I subset the raw training set by the names of the columns in the first set excluding the 53rd variable, which is problem_id, and keeping the "classe" variable:
+
+```{r}
+train_final <- train_raw1[, c(colnames(test_final)[1:52],"classe")] 
+```
+
+## Model Building and Evaluation
+
+At this point, both datasets have 52 predictive variables and either a "classe" variable or "problem_id" variable depending on if it's the training or test set, respectively.  The next step is to load the necessary libraries, set a seed for reproducibility, and divide the training set into a training and cross-validation set.  70% of the observations were selected for trainig and 30% for cross-validation:
+
+```{r}
+library('caret')
+library('rpart')
+library('e1071')
+library('randomForest')
+
+#set seed to ensure reproducibility:
+set.seed(7223)
+in_train <- createDataPartition(train_final$classe, p=0.7)[[1]]
+training <- train_final[in_train,] 
+testing <- train_final[-in_train,]
+```
+
+I decided to go with a random forest model since it's renown as one of the best possible models and typically scores very high in its predictive capabilities.  After building the model, I tested it on the cross-validation set to get the following results:
+
+```{r}
+#create a random forest model:
+mod_rf<- train(classe~., data = training, method = "rf")
+#create prediction based on model and cross-validate:
+pred <- predict(mod_rf,testing)
+confusionMatrix(testing$classe, pred)
+```
+
+As can be seen, this model has a 99.3% accuracy.  
+
+## Testing the Model
+
+To complete the project, I used the same model to predict the 20 test questions:
+
+```{r}
+#use model to predict the 20 test cases:
+test_results <- predict(mod_rf,test_final)
+test_results
+```
+
+
+
