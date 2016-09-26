@@ -1,7 +1,7 @@
 # course8_project
 
-This is a link to the RPubs location of the project:
-https://rpubs.com/WillWright/qualityLiftPrediction
+# This is a link to the RPubs location of the project:
+# https://rpubs.com/WillWright/qualityLiftPrediction
 
 
 Instructions
